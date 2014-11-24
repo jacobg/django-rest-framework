@@ -62,10 +62,10 @@ To run the tests, clone the repository, and then:
     virtualenv env
     env/bin/activate
     pip install -r requirements.txt
-    pip install -r optionals.txt
+    pip install -r requirements-test.txt
 
     # Run the tests
-    rest_framework/runtests/runtests.py
+    ./runtests.py
 
 You can also use the excellent [`tox`][tox] testing tool to run the tests against all supported versions of Python and Django.  Install `tox` globally, and then simply run:
 
@@ -75,7 +75,7 @@ You can also use the excellent [`tox`][tox] testing tool to run the tests agains
 
 It's a good idea to make pull requests early on.  A pull request represents the start of a discussion, and doesn't necessarily need to be the final, finished submission.
 
-It's also always best to make a new branch before starting work on a pull request.  This means that you'll be able to later switch back to working on another seperate issue without interfering with an ongoing pull requests.
+It's also always best to make a new branch before starting work on a pull request.  This means that you'll be able to later switch back to working on another separate issue without interfering with an ongoing pull requests.
 
 It's also useful to remember that if you have an outstanding pull request then pushing new commits to your GitHub repo will also automatically update the pull requests.
 

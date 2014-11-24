@@ -3,11 +3,11 @@ The most important decorator in this module is `@api_view`, which is used
 for writing function-based views with REST framework.
 
 There are also various decorators for setting the API policies on function
-based views, as well as the `@action` and `@link` decorators, which are
+based views, as well as the `@detail_route` and `@list_route` decorators, which are
 used to annotate methods on viewsets that should be included by routers.
 """
 from __future__ import unicode_literals
-from rest_framework.compat import six
+from django.utils import six
 from rest_framework.views import APIView
 import types
 
@@ -107,23 +107,25 @@ def permission_classes(permission_classes):
     return decorator
 
 
-def link(**kwargs):
+def detail_route(methods=['get'], **kwargs):
     """
-    Used to mark a method on a ViewSet that should be routed for GET requests.
+    Used to mark a method on a ViewSet that should be routed for detail requests.
     """
     def decorator(func):
-        func.bind_to_methods = ['get']
+        func.bind_to_methods = methods
+        func.detail = True
         func.kwargs = kwargs
         return func
     return decorator
 
 
-def action(methods=['post'], **kwargs):
+def list_route(methods=['get'], **kwargs):
     """
-    Used to mark a method on a ViewSet that should be routed for POST requests.
+    Used to mark a method on a ViewSet that should be routed for list requests.
     """
     def decorator(func):
         func.bind_to_methods = methods
+        func.detail = False
         func.kwargs = kwargs
         return func
     return decorator

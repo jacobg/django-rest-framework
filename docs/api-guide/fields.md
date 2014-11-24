@@ -62,7 +62,7 @@ A dictionary of error codes to error messages.
 ### `widget`
 
 Used only if rendering the field to HTML.
-This argument sets the widget that should be used to render the field.
+This argument sets the widget that should be used to render the field. For more details, and a list of available widgets, see [the Django documentation on form widgets][django-widgets]. 
 
 ### `label`
 
@@ -164,11 +164,12 @@ Corresponds to `django.db.models.fields.BooleanField`.
 ## CharField
 
 A text representation, optionally validates the text to be shorter than `max_length` and longer than `min_length`.
+If `allow_none` is `False` (default), `None` values will be converted to an empty string.
 
 Corresponds to `django.db.models.fields.CharField`
 or `django.db.models.fields.TextField`.
 
-**Signature:** `CharField(max_length=None, min_length=None)`
+**Signature:** `CharField(max_length=None, min_length=None, allow_none=False)`
 
 ## URLField
 
@@ -184,7 +185,9 @@ Corresponds to `django.db.models.fields.SlugField`.
 
 ## ChoiceField
 
-A field that can accept a value out of a limited set of choices.
+A field that can accept a value out of a limited set of choices. Optionally takes a `blank_display_value` parameter that customizes the display value of an empty choice.
+
+**Signature:** `ChoiceField(choices=(), blank_display_value=None)`
 
 ## EmailField
 
@@ -271,7 +274,27 @@ Corresponds to `django.db.models.fields.FloatField`.
 
 ## DecimalField
 
-A decimal representation.
+A decimal representation, represented in Python by a Decimal instance.
+
+Has two required arguments:
+
+- `max_digits` The maximum number of digits allowed in the number. Note that this number must be greater than or equal to decimal_places.
+
+- `decimal_places` The number of decimal places to store with the number.
+
+For example, to validate numbers up to 999 with a resolution of 2 decimal places, you would use:
+
+    serializers.DecimalField(max_digits=5, decimal_places=2)
+
+And to validate numbers up to anything less than one billion with a resolution of 10 decimal places:
+
+    serializers.DecimalField(max_digits=19, decimal_places=10)
+
+This field also takes an optional argument, `coerce_to_string`. If set to `True` the representation will be output as a string. If set to `False` the representation will be left as a `Decimal` instance and the final representation will be determined by the renderer.
+
+If unset, this will default to the same value as the `COERCE_DECIMAL_TO_STRING` setting, which is `True` unless set otherwise.
+
+**Signature:** `DecimalField(max_digits, decimal_places, coerce_to_string=None)`
 
 Corresponds to `django.db.models.fields.DecimalField`.
 
@@ -345,7 +368,7 @@ As an example, let's create a field that can be used represent the class name of
             """
             Serialize the object's class name.
             """
-            return obj.__class__
+            return obj.__class__.__name__
 
 # Third party packages
 
@@ -355,9 +378,26 @@ The following third party packages are also available.
 
 The [drf-compound-fields][drf-compound-fields] package provides "compound" serializer fields, such as lists of simple values, which can be described by other fields rather than serializers with the `many=True` option. Also provided are fields for typed dictionaries and values that can be either a specific type or a list of items of that type.
 
+## DRF Extra Fields
+
+The [drf-extra-fields][drf-extra-fields] package provides extra serializer fields for REST framework, including `Base64ImageField` and `PointField` classes.
+
+## django-rest-framework-gis
+
+The [django-rest-framework-gis][django-rest-framework-gis] package provides geographic addons for django rest framework like a  `GeometryField` field and a GeoJSON serializer.
+
+## django-rest-framework-hstore
+
+The [django-rest-framework-hstore][django-rest-framework-hstore] package provides an `HStoreField` to support [django-hstore][django-hstore] `DictionaryField` model field.
+
 [cite]: https://docs.djangoproject.com/en/dev/ref/forms/api/#django.forms.Form.cleaned_data
 [FILE_UPLOAD_HANDLERS]: https://docs.djangoproject.com/en/dev/ref/settings/#std:setting-FILE_UPLOAD_HANDLERS
 [ecma262]: http://ecma-international.org/ecma-262/5.1/#sec-15.9.1.15
 [strftime]: http://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior
+[django-widgets]: https://docs.djangoproject.com/en/dev/ref/forms/widgets/
 [iso8601]: http://www.w3.org/TR/NOTE-datetime
 [drf-compound-fields]: http://drf-compound-fields.readthedocs.org
+[drf-extra-fields]: https://github.com/Hipo/drf-extra-fields
+[django-rest-framework-gis]: https://github.com/djangonauts/django-rest-framework-gis
+[django-rest-framework-hstore]: https://github.com/djangonauts/django-rest-framework-hstore
+[django-hstore]: https://github.com/djangonauts/django-hstore

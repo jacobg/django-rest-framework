@@ -5,12 +5,14 @@ They give us a generic way of being able to handle various media types
 on the request, such as form content or json encoded data.
 """
 from __future__ import unicode_literals
+
 from django.conf import settings
 from django.core.files.uploadhandler import StopFutureHandlers
 from django.http import QueryDict
 from django.http.multipartparser import MultiPartParser as DjangoMultiPartParser
 from django.http.multipartparser import MultiPartParserError, parse_header, ChunkIter
-from rest_framework.compat import etree, six, yaml
+from django.utils import six
+from rest_framework.compat import etree, yaml, force_text, urlparse
 from rest_framework.exceptions import ParseError
 from rest_framework import renderers
 import json
@@ -47,7 +49,7 @@ class JSONParser(BaseParser):
     """
 
     media_type = 'application/json'
-    renderer_class = renderers.UnicodeJSONRenderer
+    renderer_class = renderers.JSONRenderer
 
     def parse(self, stream, media_type=None, parser_context=None):
         """
@@ -131,7 +133,7 @@ class MultiPartParser(BaseParser):
             data, files = parser.parse()
             return DataAndFiles(data, files)
         except MultiPartParserError as exc:
-            raise ParseError('Multipart form parse error - %s' % str(exc))
+            raise ParseError('Multipart form parse error - %s' % six.text_type(exc))
 
 
 class XMLParser(BaseParser):
@@ -288,7 +290,23 @@ class FileUploadParser(BaseParser):
 
         try:
             meta = parser_context['request'].META
-            disposition = parse_header(meta['HTTP_CONTENT_DISPOSITION'])
-            return disposition[1]['filename']
+            disposition = parse_header(meta['HTTP_CONTENT_DISPOSITION'].encode('utf-8'))
+            filename_parm = disposition[1]
+            if 'filename*' in filename_parm:
+                return self.get_encoded_filename(filename_parm)
+            return force_text(filename_parm['filename'])
         except (AttributeError, KeyError):
             pass
+
+    def get_encoded_filename(self, filename_parm):
+        """
+        Handle encoded filenames per RFC6266. See also:
+        http://tools.ietf.org/html/rfc2231#section-4
+        """
+        encoded_filename = force_text(filename_parm['filename*'])
+        try:
+            charset, lang, filename = encoded_filename.split('\'', 2)
+            filename = urlparse.unquote(filename)
+        except (ValueError, LookupError):
+            filename = force_text(filename_parm['filename'])
+        return filename

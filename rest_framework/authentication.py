@@ -6,9 +6,9 @@ import base64
 
 from django.contrib.auth import authenticate
 from django.core.exceptions import ImproperlyConfigured
+from django.middleware.csrf import CsrfViewMiddleware
 from django.conf import settings
 from rest_framework import exceptions, HTTP_HEADER_ENCODING
-from rest_framework.compat import CsrfViewMiddleware
 from rest_framework.compat import oauth, oauth_provider, oauth_provider_store
 from rest_framework.compat import oauth2_provider, provider_now, check_nonce
 from rest_framework.authtoken.models import Token
@@ -21,7 +21,7 @@ def get_authorization_header(request):
     Hide some test client ickyness where the header can be unicode.
     """
     auth = request.META.get('HTTP_AUTHORIZATION', b'')
-    if type(auth) == type(''):
+    if isinstance(auth, type('')):
         # Work around django test client oddness
         auth = auth.encode(HTTP_HEADER_ENCODING)
     return auth
@@ -129,7 +129,7 @@ class SessionAuthentication(BaseAuthentication):
         reason = CSRFCheck().process_view(request, None, (), {})
         if reason:
             # CSRF failed, bail with explicit error message
-            raise exceptions.AuthenticationFailed('CSRF Failed: %s' % reason)
+            raise exceptions.PermissionDenied('CSRF Failed: %s' % reason)
 
 
 class TokenAuthentication(BaseAuthentication):
@@ -310,6 +310,13 @@ class OAuth2Authentication(BaseAuthentication):
 
         auth = get_authorization_header(request).split()
 
+        if len(auth) == 1:
+            msg = 'Invalid bearer header. No credentials provided.'
+            raise exceptions.AuthenticationFailed(msg)
+        elif len(auth) > 2:
+            msg = 'Invalid bearer header. Token string should not contain spaces.'
+            raise exceptions.AuthenticationFailed(msg)
+
         if auth and auth[0].lower() == b'bearer':
             access_token = auth[1]
         elif 'access_token' in request.POST:
@@ -318,13 +325,6 @@ class OAuth2Authentication(BaseAuthentication):
             access_token = request.GET['access_token']
         else:
             return None
-
-        if len(auth) == 1:
-            msg = 'Invalid bearer header. No credentials provided.'
-            raise exceptions.AuthenticationFailed(msg)
-        elif len(auth) > 2:
-            msg = 'Invalid bearer header. Token string should not contain spaces.'
-            raise exceptions.AuthenticationFailed(msg)
 
         return self.authenticate_credentials(request, access_token)
 
@@ -344,7 +344,7 @@ class OAuth2Authentication(BaseAuthentication):
         user = token.user
 
         if not user.is_active:
-            msg = 'User inactive or deleted: %s' % user.username
+            msg = 'User inactive or deleted: %s' % user.get_username()
             raise exceptions.AuthenticationFailed(msg)
 
         return (user, token)

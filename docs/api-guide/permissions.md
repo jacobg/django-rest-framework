@@ -36,6 +36,12 @@ For example:
         self.check_object_permissions(self.request, obj)
         return obj
 
+#### Limitations of object level permissions
+
+For performance reasons the generic views will not automatically apply object level permissions to each instance in a queryset when returning a list of objects.
+
+Often when you're using object level permissions you'll also want to [filter the queryset][filtering] appropriately, to ensure that users only have visibility onto instances that they are permitted to view.
+
 ## Setting the permission policy
 
 The default permission policy may be set globally, using the `DEFAULT_PERMISSION_CLASSES` setting.  For example.
@@ -56,7 +62,7 @@ You can also set the authentication policy on a per-view, or per-viewset basis,
 using the `APIView` class based views.
 
     from rest_framework.permissions import IsAuthenticated
-	from rest_framework.responses import Response
+	from rest_framework.response import Response
 	from rest_framework.views import APIView
 
     class ExampleView(APIView):
@@ -108,7 +114,7 @@ This permission is suitable if you want to your API to allow read permissions to
 
 ## DjangoModelPermissions
 
-This permission class ties into Django's standard `django.contrib.auth` [model permissions][contribauth].  When applied to a view that has a `.model` property, authorization will only be granted if the user *is authenticated* and has the *relevant model permissions* assigned.
+This permission class ties into Django's standard `django.contrib.auth` [model permissions][contribauth].  This permission must only be applied to views that has a `.queryset` property set. Authorization will only be granted if the user *is authenticated* and has the *relevant model permissions* assigned.
 
 * `POST` requests require the user to have the `add` permission on the model.
 * `PUT` and `PATCH` requests require the user to have the `change` permission on the model.
@@ -118,6 +124,12 @@ The default behaviour can also be overridden to support custom model permissions
 
 To use custom model permissions, override `DjangoModelPermissions` and set the `.perms_map` property.  Refer to the source code for details.
 
+#### Using with views that do not include a `queryset` attribute.
+
+If you're using this permission with a view that uses an overridden `get_queryset()` method there may not be a `queryset` attribute on the view. In this case we suggest also marking the view with a sential queryset, so that this class can determine the required permissions. For example:
+
+    queryset = User.objects.none()  # Required for DjangoModelPermissions
+
 ## DjangoModelPermissionsOrAnonReadOnly
 
 Similar to `DjangoModelPermissions`, but also allows unauthenticated users to have read-only access to the API.
@@ -126,7 +138,7 @@ Similar to `DjangoModelPermissions`, but also allows unauthenticated users to ha
 
 This permission class ties into Django's standard [object permissions framework][objectpermissions] that allows per-object permissions on models.  In order to use this permission class, you'll also need to add a permission backend that supports object-level permissions, such as [django-guardian][guardian].
 
-When applied to a view that has a `.model` property, authorization will only be granted if the user *is authenticated* and has the *relevant per-object permissions* and *relevant model permissions* assigned.
+As with `DjangoModelPermissions`, this permission must only be applied to views that have a `.queryset` property. Authorization will only be granted if the user *is authenticated* and has the *relevant per-object permissions* and *relevant model permissions* assigned.
 
 * `POST` requests require the user to have the `add` permission on the model instance.
 * `PUT` and `PATCH` requests require the user to have the `change` permission on the model instance.
@@ -134,7 +146,13 @@ When applied to a view that has a `.model` property, authorization will only be 
 
 Note that `DjangoObjectPermissions` **does not** require the `django-guardian` package, and should support other object-level backends equally well.
 
-As with `DjangoModelPermissions` you can use custom model permissions by overriding `DjangoModelPermissions` and setting the `.perms_map` property.  Refer to the source code for details.  Note that if you add a custom `view` permission for `GET`, `HEAD` and `OPTIONS` requests, you'll probably also want to consider adding the `DjangoObjectPermissionsFilter` class to ensure that list endpoints only return results including objects for which the user has appropriate view permissions.
+As with `DjangoModelPermissions` you can use custom model permissions by overriding `DjangoModelPermissions` and setting the `.perms_map` property.  Refer to the source code for details.
+
+---
+
+**Note**: If you need object level `view` permissions for `GET`, `HEAD` and `OPTIONS` requests, you'll want to consider also adding the `DjangoObjectPermissionsFilter` class to ensure that list endpoints only return results including objects for which the user has appropriate view permissions.
+
+---
 
 ## TokenHasReadWriteScope
 
@@ -171,11 +189,7 @@ If you need to test if a request is a read operation or a write operation, you s
 
 ---
 
-**Note**: In versions 2.0 and 2.1, the signature for the permission checks always included an optional `obj` parameter, like so: `.has_permission(self, request, view, obj=None)`.  The method would be called twice, first for the global permission checks, with no object supplied, and second for the object-level check when required.
-
-As of version 2.2 this signature has now been replaced with two separate method calls, which is more explicit and obvious.  The old style signature continues to work, but its use will result in a `PendingDeprecationWarning`, which is silent by default.  In 2.3 this will be escalated to a `DeprecationWarning`, and in 2.4 the old-style signature will be removed.
-
-For more details see the [2.2 release announcement][2.2-announcement].
+**Note**: The instance-level `has_object_permission` method will only be called if the view-level `has_permission` checks have already passed. Also note that in order for the instance-level checks to run, the view code should explicitly call `.check_object_permissions(request, obj)`. If you are using the generic views then this will be handled for you by default.
 
 ---
 
@@ -237,7 +251,8 @@ The [REST Condition][rest-condition] package is another extension for building c
 [cite]: https://developer.apple.com/library/mac/#documentation/security/Conceptual/AuthenticationAndAuthorizationGuide/Authorization/Authorization.html
 [authentication]: authentication.md
 [throttling]: throttling.md
-[contribauth]: https://docs.djangoproject.com/en/1.0/topics/auth/#permissions
+[filtering]: filtering.md
+[contribauth]: https://docs.djangoproject.com/en/dev/topics/auth/customizing/#custom-permissions
 [objectpermissions]: https://docs.djangoproject.com/en/dev/topics/auth/customizing/#handling-object-permissions
 [guardian]: https://github.com/lukaszb/django-guardian
 [get_objects_for_user]: http://pythonhosted.org/django-guardian/api/guardian.shortcuts.html#get-objects-for-user
